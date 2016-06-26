@@ -15,6 +15,7 @@ import java.util.Scanner;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
+
 /**
 * <p>Title: HeaderTable.java</p>
 * <p>Description: </p>
@@ -33,6 +34,7 @@ public class HeaderTable {
 	private Map<String, Integer> itemsMaptoFrequencies;
 	private List<String>         sortedItemsbyFrequencies;
 	private Vector<String>       itemstoRemove;
+	private Scanner              input;
 	
 	public HeaderTable() {
 		this.headerTable = new Vector<FPTree>();
@@ -47,33 +49,13 @@ public class HeaderTable {
 		this.threshold = 0;
 	}
 	
-	public FPTree constructFPTree(File file, int threshold) throws FileNotFoundException {
+	public FPTree getFPTree(File file, int threshold) throws FileNotFoundException {
 		this.file = file;
 		this.threshold = threshold;
 		FirstScanItems(this.file, this.threshold, this.itemsMaptoFrequencies, this.sortedItemsbyFrequencies, this.itemstoRemove);
 		constructFPTree(this.file, this.itemsMaptoFrequencies, this.sortedItemsbyFrequencies);
 		return this.header;
 	}
-	
-	public FPTree constructConditionalFPTree(Map<String, Integer> conditionalPatternBase, Map<String, Integer> conditionalItemsMaptoFrequencies, int threshold, Vector<FPTree> conditional_headerTable) {
-        
-		this.threshold = threshold;
-		this.headerTable = conditional_headerTable;
-        
-        for (String pattern : conditionalPatternBase.keySet()) {
-            
-            Vector<String> pattern_vector = new Vector<String>();
-            StringTokenizer tokenizer = new StringTokenizer(pattern);
-            while (tokenizer.hasMoreTokens()) {
-                String item = tokenizer.nextToken();
-                if (conditionalItemsMaptoFrequencies.get(item) >= this.threshold) {
-                    pattern_vector.addElement(item);
-                }
-            }      
-            insertToConditionalTree(pattern_vector, conditionalPatternBase.get(pattern), this.header, this.headerTable);
-        }
-        return this.header;
-    }
 	
 	public Vector<FPTree> getHeaderTable() {
 		return this.headerTable;
@@ -106,7 +88,8 @@ public class HeaderTable {
 	 */
 	private void FirstScanItems(File file, int threshold, Map<String, Integer> itemsMaptoFrequencies, List<String> sortedItemsbyFrequencies, Vector<String> itemstoRemove) throws FileNotFoundException {
 		
-		Scanner input = new Scanner(file);
+		input = new Scanner(file);
+		input.useDelimiter("[,\n\r]");
 		
 		//遍历事务库，统计item支持度
 		while (input.hasNext()) {
@@ -118,7 +101,7 @@ public class HeaderTable {
                 itemsMaptoFrequencies.put(temp, 1);
             }
         }
-        input.close();
+        //input.close();
         
         //插入头结点<null, 0>
         sortedItemsbyFrequencies.add("null");
@@ -148,9 +131,8 @@ public class HeaderTable {
         for (String itemtoRemove : itemstoRemove) {
             sortedItemsbyFrequencies.remove(itemtoRemove);
         }
-        //printttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
-        //     for ( String key : list )
-        //        System.out.printf( "%-10s%10s\n", key, items.get( key ) );
+        sortedItemsbyFrequencies.remove(0);
+        sortedItemsbyFrequencies.remove("null");
 	}
 	
 	/**
@@ -161,7 +143,7 @@ public class HeaderTable {
 	 */
 	private void constructFPTree(File file, Map<String, Integer> itemsMaptoFrequencies, List<String> sortedItemsbyFrequencies) throws FileNotFoundException {
 		
-		Scanner input = new Scanner(file);
+		input = new Scanner(file);
 		
 		//项头表加入频繁1项集
 		for (String itemsforTable : sortedItemsbyFrequencies) {
@@ -170,18 +152,18 @@ public class HeaderTable {
 		
 		while(input.hasNextLine()) {
 			String line = input.nextLine();
-			StringTokenizer tokenizer = new StringTokenizer(line);
-			
+			StringTokenizer tokenizer = new StringTokenizer(line, ",");
 			//存储事务中的item序列，按支持度大小降序排列，注意只存储包含频繁项集的事务
 			Vector<String> affairSortedbyFrequencies = new Vector<String>();
 			while(tokenizer.hasMoreTokens()) {
 				String item = tokenizer.nextToken();
-				if (itemstoRemove.contains(item)) {
+				
+				if (this.itemstoRemove.contains(item)) {
                     continue;
                 }
 				int index = 0;
                 for (String vectorString : affairSortedbyFrequencies) {
-                    if (itemsMaptoFrequencies.get(vectorString) < itemsMaptoFrequencies.get(item) || ((itemsMaptoFrequencies.get(vectorString) == itemsMaptoFrequencies.get(item)) && (vectorString.compareToIgnoreCase(item) < 0 ? true : false))) {
+                	if (itemsMaptoFrequencies.get(vectorString) < itemsMaptoFrequencies.get(item) || ((itemsMaptoFrequencies.get(vectorString) == itemsMaptoFrequencies.get(item)) && (vectorString.compareToIgnoreCase(item) < 0 ? true : false))) {
                     	affairSortedbyFrequencies.add(index, item);
                         break;
                     }
@@ -190,27 +172,26 @@ public class HeaderTable {
                 if (!affairSortedbyFrequencies.contains(item)) {
                 	affairSortedbyFrequencies.add(item);
                 }
-                
-                insertToTree(affairSortedbyFrequencies, this.header, this.headerTable);
-                
-                affairSortedbyFrequencies.clear();
 			}
-			//统计支持度计数
-			//（真的需要统计？直接从Map取不行吗？）
-			for (FPTree item : this.headerTable) {
-	            int count = 0;
-	            FPTree itemtemp = item;
-	            while (itemtemp.next != null) {
-	                itemtemp = itemtemp.next;
-	                count += itemtemp.count;
-	            }
-	            item.count = count;
-	        }
-			//（需要重新排序吗？）
-	        Comparator<FPTree> c = new FrequencyComparitorinHeaderTable();
-	        Collections.sort(headerTable, c);
-	        input.close();
+                
+            insertToTree(affairSortedbyFrequencies, this.header, this.headerTable);
+            affairSortedbyFrequencies.clear();
 		}
+		//统计支持度计数
+		//（真的需要统计？直接从Map取不行吗？）
+		for (FPTree item : this.headerTable) {
+	        int count = 0;
+	        FPTree itemtemp = item;
+	        while (itemtemp.next != null) {
+	        	itemtemp = itemtemp.next;
+	            count += itemtemp.count;
+	        }
+	        item.count = count;
+	    }
+		//（需要重新排序吗？）
+	    Comparator c = new FrequencyComparitorinHeaderTable();
+	    Collections.sort(headerTable, c);
+	    //input.close();
 	}
 	
 	
@@ -252,37 +233,4 @@ public class HeaderTable {
         affairSortedbyFrequencies.remove(0);
         insertToTree(affairSortedbyFrequencies, newNode, headerTable);
 	}
-	
-	private void insertToConditionalTree(Vector<String> pattern_vector, int count_of_pattern, FPTree conditional_fptree, Vector<FPTree> conditional_headerTable) {
-        if (pattern_vector.isEmpty()) {
-            return;
-        }
-        String itemtoAddtotree = pattern_vector.firstElement();
-        FPTree newNode = null;
-        boolean ifisdone = false;
-        for (FPTree child : conditional_fptree.children) {
-            if (child.item.equals(itemtoAddtotree)) {
-                newNode = child;
-                child.count += count_of_pattern;
-                ifisdone = true;
-                break;
-            }
-        }
-        if (!ifisdone) {
-            for (FPTree headerPointer : conditional_headerTable) {
-                if (headerPointer.item.equals(itemtoAddtotree)) {
-                    newNode = new FPTree(itemtoAddtotree);
-                    newNode.count = count_of_pattern;
-                    newNode.parent = conditional_fptree;
-                    conditional_fptree.children.add(newNode);
-                    while (headerPointer.next != null) {
-                        headerPointer = headerPointer.next;
-                    }
-                    headerPointer.next = newNode;
-                }
-            }
-        }
-        pattern_vector.remove(0);
-        insertToConditionalTree(pattern_vector, count_of_pattern, newNode, conditional_headerTable);
-    }
 }
