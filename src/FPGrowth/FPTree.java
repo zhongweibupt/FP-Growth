@@ -1,7 +1,7 @@
 /**
  * 
  */
-package FPGrowth;
+package fpgrowth;
 
 import java.util.Vector;
 

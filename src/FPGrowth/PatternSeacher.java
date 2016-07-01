@@ -1,7 +1,7 @@
 /**
  * 
  */
-package FPGrowth;
+package fpgrowth;
 
 import java.io.BufferedWriter;
 import java.io.File;

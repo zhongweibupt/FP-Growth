@@ -1,7 +1,7 @@
 /**
  * 
  */
-package FPGrowth;
+package fpgrowth;
 
 import java.io.File;
 import java.io.FileNotFoundException;
